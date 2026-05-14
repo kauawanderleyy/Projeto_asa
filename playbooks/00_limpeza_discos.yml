@@ -1,0 +1,36 @@
+---
+- name: Limpeza de RAID e LVM para Reinstalação
+  hosts: arq
+  become: yes
+  tasks:
+    - name: Desmontar o diretório /mnt se estiver ocupado
+      mount:
+        path: /mnt
+        state: unmounted
+
+    - name: Remover o Logical Volume (dados)
+      lvol:
+        vg: ifpb
+        lv: dados
+        state: absent
+        force: yes
+      ignore_errors: yes
+
+    - name: Remover o Volume Group (ifpb)
+      lvg:
+        vg: ifpb
+        state: absent
+      ignore_errors: yes
+
+    - name: Remover o Physical Volume
+      shell: pvremove /dev/md0
+      ignore_errors: yes
+
+    - name: Parar o array RAID md0
+      shell: mdadm --stop /dev/md0
+      ignore_errors: yes
+
+    - name: Limpar as assinaturas (superblocks) dos discos
+      shell: "mdadm --zero-superblock /dev/sd{{ item }}"
+      loop: [b, c, d]
+      ignore_errors: yes

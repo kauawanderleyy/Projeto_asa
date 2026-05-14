@@ -1,0 +1,79 @@
+---
+- name: Configuração do Servidor DNS (Bind9) no Arq
+  hosts: arq
+  become: yes
+  tasks:
+    - name: Instalar o Bind9
+      apt:
+        name: bind9
+        state: present
+        update_cache: yes
+
+    - name: Configurar opções do Bind (Forwarders)
+      copy:
+        dest: /etc/bind/named.conf.options
+        content: |
+          options {
+              directory "/var/cache/bind";
+              forwarders {
+                  8.8.8.8;
+                  8.8.4.4;
+              };
+              dnssec-validation auto;
+              listen-on-v6 { any; };
+          };
+
+    - name: Definir as Zonas no named.conf.local
+      blockinfile:
+        path: /etc/bind/named.conf.local
+        block: |
+          zone "projeto.local" {
+              type master;
+              file "/etc/bind/db.projeto.local";
+          };
+          zone "56.168.192.in-addr.arpa" {
+              type master;
+              file "/etc/bind/db.192";
+          };
+
+    - name: Criar arquivo da Zona Direta
+      copy:
+        dest: /etc/bind/db.projeto.local
+        content: |
+          $TTL    604800
+          @       IN      SOA     arq.projeto.local. admin.projeto.local. (
+                                2         ; Serial
+                           604800         ; Refresh
+                            86400         ; Retry
+                          2419200         ; Expire
+                           604800 )       ; Negative Cache TTL
+          ;
+          @       IN      NS      arq.projeto.local.
+          arq     IN      A       192.168.56.112
+          db      IN      A       192.168.56.120
+          app     IN      A       192.168.56.130
+          cli     IN      A       192.168.56.140
+
+    - name: Criar arquivo da Zona Reversa
+      copy:
+        dest: /etc/bind/db.192
+        content: |
+          $TTL    604800
+          @       IN      SOA     arq.projeto.local. admin.projeto.local. (
+                                1         ; Serial
+                           604800         ; Refresh
+                            86400         ; Retry
+                          2419200         ; Expire
+                           604800 )       ; Negative Cache TTL
+          ;
+          @       IN      NS      arq.projeto.local.
+          112     IN      PTR     arq.projeto.local.
+          120     IN      PTR     db.projeto.local.
+          130     IN      PTR     app.projeto.local.
+          140     IN      PTR     cli.projeto.local.
+
+    - name: Reiniciar o Bind9
+      service:
+        name: bind9
+        state: restarted
+        enabled: yes

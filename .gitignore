@@ -1,0 +1,16 @@
+# Vagrant - NUNCA suba esta pasta
+.vagrant/
+
+# Ansible - Arquivos temporários de erro
+*.retry
+
+# Logs
+*.log
+
+# Arquivos do Sistema Operacional
+.DS_Store
+Thumbs.db
+
+# Pacotes e caches (caso use scripts Python extras)
+__pycache__/
+*.py[cod]

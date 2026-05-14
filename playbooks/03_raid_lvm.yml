@@ -1,0 +1,43 @@
+---
+- name: Criação de RAID 1 e LVM no Servidor Arq
+  hosts: arq
+  become: yes
+  tasks:
+    - name: Instalar pacotes necessários (mdadm e lvm2)
+      apt:
+        name:
+          - mdadm
+          - lvm2
+        state: present
+        update_cache: yes
+
+    - name: Criar dispositivo RAID 1 (/dev/md0) com sdb e sdc
+      shell: "mdadm -C /dev/md0 -e 0.90 -l 1 -n 2 /dev/sdb /dev/sdc --run"
+      args:
+        creates: /dev/md0
+
+    - name: Criar Volume Group (VG) 'ifpb'
+      lvg:
+        vg: ifpb
+        pvs: /dev/md0
+        state: present
+
+    # AQUI COMEÇA A SUBSTITUIÇÃO
+    - name: Criar Logical Volume (LV) 'dados' usando todo o espaço
+      lvol:
+        vg: ifpb
+        lv: dados
+        size: 100%FREE
+        state: present
+
+    - name: Formatar o volume lógico com ext4
+      filesystem:
+        fstype: ext4
+        dev: /dev/ifpb/dados
+
+    - name: Montar o volume lógico em /mnt
+      mount:
+        path: /mnt
+        src: /dev/ifpb/dados
+        fstype: ext4
+        state: mounted

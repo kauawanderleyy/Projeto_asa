@@ -1,0 +1,51 @@
+---
+- name: Configuração de Usuários, Sudo e Hardening SSH
+  hosts: servidores
+  become: yes
+  vars:
+    # Definindo a senha padrão como 'ifpb' (criptografada em MD5/SHA512 para o módulo user)
+    # Dica: Em produção, usaríamos o Ansible Vault, mas para o lab seguiremos o padrão.
+    user_password: "{{ 'ifpb' | password_hash('sha512') }}"
+
+  tasks:
+    - name: Garantir que o grupo 'devops' exista
+      group:
+        name: devops
+        state: present
+
+    - name: Criar usuário para o Integrante 1 (Kaua)
+      user:
+        name: kaua
+        password: "{{ user_password }}"
+        groups: sudo,devops
+        append: yes
+        shell: /bin/bash
+
+    - name: Criar usuário para o Integrante 2 (Pedro)
+      user:
+        name: pedro
+        password: "{{ user_password }}"
+        groups: sudo,devops
+        append: yes
+        shell: /bin/bash
+
+    - name: Configurar Sudo sem senha para o grupo devops (Requisito de Lab)
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%devops'
+        line: '%devops ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+    - name: HARDENING - Desabilitar login de Root via SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+      notify: Reiniciar SSH
+
+  handlers:
+    - name: Reiniciar SSH
+      service:
+        name: ssh
+        state: restarted

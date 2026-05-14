@@ -1,0 +1,46 @@
+---
+- name: Configuração do Servidor NFS no Arq
+  hosts: arq
+  become: yes
+  tasks:
+    - name: Instalar o servidor NFS
+      apt:
+        name: nfs-kernel-server
+        state: present
+
+    - name: Configurar as exportações (Exports)
+      lineinfile:
+        path: /etc/exports
+        line: "/mnt 192.168.56.0/24(rw,sync,no_subtree_check)"
+        create: yes
+
+    - name: Aplicar as exportações
+      command: exportfs -ra
+
+    - name: Garantir que o serviço NFS está rodando
+      service:
+        name: nfs-kernel-server
+        state: restarted
+        enabled: yes
+
+- name: Configuração dos Clientes NFS
+  hosts: db, app, cli
+  become: yes
+  tasks:
+    - name: Instalar cliente NFS
+      apt:
+        name: nfs-common
+        state: present
+
+    - name: Criar diretório de montagem nos clientes
+      file:
+        path: /mnt/dados_compartilhados
+        state: directory
+
+    - name: Montar o diretório compartilhado do Arq
+      mount:
+        path: /mnt/dados_compartilhados
+        src: "arq.projeto.local:/mnt"
+        fstype: nfs
+        opts: rw,sync
+        state: mounted
