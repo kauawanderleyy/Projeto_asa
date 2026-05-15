@@ -1,5 +1,5 @@
 ---
-- name: Configuração do Servidor NFS no Arq
+- name: Configuração do Servidor NFS
   hosts: arq
   become: yes
   tasks:
@@ -8,11 +8,10 @@
         name: nfs-kernel-server
         state: present
 
-    - name: Configurar as exportações (Exports)
-      lineinfile:
-        path: /etc/exports
-        line: "/mnt 192.168.56.0/24(rw,sync,no_subtree_check)"
-        create: yes
+    - name: Configurar as exportações (Exports) - Sobrescrevendo limpo
+      copy:
+        dest: /etc/exports
+        content: "/mnt *(rw,sync,no_subtree_check,no_root_squash,insecure)\n"
 
     - name: Aplicar as exportações
       command: exportfs -ra
@@ -36,11 +35,12 @@
       file:
         path: /mnt/dados_compartilhados
         state: directory
+        mode: '0777'
 
     - name: Montar o diretório compartilhado do Arq
       mount:
         path: /mnt/dados_compartilhados
-        src: "arq.projeto.local:/mnt"
+        src: "192.168.56.112:/mnt"
         fstype: nfs
-        opts: rw,sync
+        opts: rw,sync  # <-- Removido o 'insecure' daqui
         state: mounted
