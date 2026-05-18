@@ -47,15 +47,15 @@
           - autofs
         state: present
 
-    - name: Configurar o arquivo auto.master do Autofs
+    - name: Configurar o arquivo auto.master do Autofs (Modo Direto)
       lineinfile:
         path: /etc/auto.master
-        line: "/var /etc/auto.nfs --timeout=60"
+        line: "/- /etc/auto.nfs --timeout=60"
 
-    - name: Configurar o mapa de montagem para /var/nfs
+    - name: Configurar o mapa de montagem para /var/nfs (Caminho Absoluto)
       copy:
         dest: /etc/auto.nfs
-        content: "nfs -fstype=nfs,rw,sync 192.168.56.112:/dados/nfs\n"
+        content: "/var/nfs -fstype=nfs,rw,sync 192.168.56.112:/dados/nfs\n"
 
     - name: Reiniciar e ativar o serviço Autofs
       service:
