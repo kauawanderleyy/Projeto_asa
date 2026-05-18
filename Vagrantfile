@@ -64,4 +64,5 @@ Vagrant.configure("2") do |config|
       vb.linked_clone = true
     end
   end
+config.vm.provision "shell", inline: "mkdir -p /var/lib/apt/lists/partial && apt-get update", privileged: true
 end
