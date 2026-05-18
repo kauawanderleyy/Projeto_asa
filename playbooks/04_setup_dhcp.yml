@@ -15,28 +15,34 @@
         regexp: '^INTERFACESv4='
         line: 'INTERFACESv4="eth1"'
 
-    - name: Definir a configuração do dhcpd.conf
+    - name: Definir a configuração do dhcpd.conf conforme o escopo do PDF
       blockinfile:
         path: /etc/dhcp/dhcpd.conf
         block: |
-          option domain-name "projeto.local";
+          option domain-name "kaua.pedro.devops";
           option domain-name-servers 192.168.56.112;
 
-          default-lease-time 600;
-          max-lease-time 7200;
+          default-lease-time 180;
+          max-lease-time 3600;
 
           authoritative;
 
           subnet 192.168.56.0 netmask 255.255.255.0 {
-            range 192.168.56.150 192.168.56.200;
-            option routers 192.168.56.112;
+            range 192.168.56.50 192.168.56.100;
+            option routers 192.168.56.1;
             option broadcast-address 192.168.56.255;
           }
 
-          # Reserva de IP para o Banco de Dados (Exemplo)
+          # Reserva de IP para o Banco de Dados (Matrícula Final 20)
           host db {
-            hardware ethernet 08:00:27:12:12:20; # Verifique o MAC no seu ip a anterior
+            hardware ethernet 08:00:27:12:12:20;
             fixed-address 192.168.56.120;
+          }
+
+          # Reserva de IP para a Aplicação (Configurado no Vagrantfile)
+          host app {
+            hardware ethernet 08:00:27:12:12:30;
+            fixed-address 192.168.56.130;
           }
 
     - name: Reiniciar o serviço DHCP para aplicar as mudanças

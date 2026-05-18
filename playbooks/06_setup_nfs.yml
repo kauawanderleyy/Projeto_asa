@@ -1,5 +1,5 @@
 ---
-- name: Configuração do Servidor NFS
+- name: Configuração do Servidor NFS (Arq)
   hosts: arq
   become: yes
   tasks:
@@ -8,10 +8,24 @@
         name: nfs-kernel-server
         state: present
 
-    - name: Configurar as exportações (Exports) - Sobrescrevendo limpo
+    - name: Criar o usuário nfs-ifpb sem shell de login
+      user:
+        name: nfs-ifpb
+        uid: 2000
+        shell: /bin/false
+
+    - name: Garantir que o diretório /dados/nfs existe conforme o escopo
+      file:
+        path: /dados/nfs
+        state: directory
+        owner: nfs-ifpb
+        group: nfs-ifpb
+        mode: '0755'
+
+    - name: Configurar as exportações com mapeamento de usuário (all_squash e sync)
       copy:
         dest: /etc/exports
-        content: "/mnt *(rw,sync,no_subtree_check,no_root_squash,insecure)\n"
+        content: "/dados/nfs 192.168.56.0/24(rw,sync,no_subtree_check,insecure,all_squash,anonuid=2000,anongid=2000)\n"
 
     - name: Aplicar as exportações
       command: exportfs -ra
@@ -22,25 +36,29 @@
         state: restarted
         enabled: yes
 
-- name: Configuração dos Clientes NFS
-  hosts: db, app, cli
+- name: Configuração do Autofs nos Clientes
+  hosts: banco_dados, aplicacao, clientes
   become: yes
   tasks:
-    - name: Instalar cliente NFS
+    - name: Instalar pacotes de cliente NFS e Autofs
       apt:
-        name: nfs-common
+        name:
+          - nfs-common
+          - autofs
         state: present
 
-    - name: Criar diretório de montagem nos clientes
-      file:
-        path: /mnt/dados_compartilhados
-        state: directory
-        mode: '0777'
+    - name: Configurar o arquivo auto.master do Autofs
+      lineinfile:
+        path: /etc/auto.master
+        line: "/var /etc/auto.nfs --timeout=60"
 
-    - name: Montar o diretório compartilhado do Arq
-      mount:
-        path: /mnt/dados_compartilhados
-        src: "192.168.56.112:/mnt"
-        fstype: nfs
-        opts: rw,sync  # <-- Removido o 'insecure' daqui
-        state: mounted
+    - name: Configurar o mapa de montagem para /var/nfs
+      copy:
+        dest: /etc/auto.nfs
+        content: "nfs -fstype=nfs,rw,sync 192.168.56.112:/dados/nfs\n"
+
+    - name: Reiniciar e ativar o serviço Autofs
+      service:
+        name: autofs
+        state: restarted
+        enabled: yes

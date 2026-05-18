@@ -1,0 +1,81 @@
+---
+- name: Configuração do Servidor de Banco de Dados
+  hosts: banco_dados
+  become: yes
+  tasks:
+    - name: Instalar o servidor MariaDB
+      apt:
+        name: mariadb-server
+        state: present
+
+    - name: Garantir que o MariaDB está rodando
+      service:
+        name: mariadb
+        state: started
+        enabled: yes
+
+- name: Configuração do Servidor de Aplicação
+  hosts: aplicacao
+  become: yes
+  tasks:
+    - name: Instalar o servidor Web Apache2
+      apt:
+        name: apache2
+        state: present
+
+    - name: Criar o arquivo index.html customizado com os dados do grupo
+      copy:
+        dest: /var/www/html/index.html
+        content: |
+          <!DOCTYPE html>
+          <html lang="pt-br">
+          <head>
+              <meta charset="UTF-8">
+              <title>Projeto ASA - DevOps</title>
+          </head>
+          <body>
+              <h1>Projeto de Infraestrutura como Código (IaC)</h1>
+              <p><strong>Descrição:</strong> Provisionamento automatizado de infraestrutura virtual utilizando Vagrant e Ansible.</p>
+              <hr>
+              <h2>Integrantes da Equipe:</h2>
+              <ul>
+                  <li><strong>Nome:</strong> Kauá | <strong>Matrícula:</strong> Final 12</li>
+                  <li><strong>Nome:</strong> Pedro | <strong>Matrícula:</strong> Final 20</li>
+              </ul>
+          </body>
+          </html>
+        mode: '0644'
+
+    - name: Garantir que o Apache2 está rodando
+      service:
+        name: apache2
+        state: restarted
+        enabled: yes
+
+- name: Configuração do Host Cliente (X11 e Interface Gráfica)
+  hosts: clientes
+  become: yes
+  tasks:
+    - name: Instalar Firefox e suporte a X11 (xauth)
+      apt:
+        name:
+          - firefox-esr
+          - xauth
+        state: present
+
+    - name: Ajustar o servidor SSH para permitir exportação de interface X11
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?X11Forwarding'
+        line: 'X11Forwarding yes'
+
+    - name: Garantir que a autenticação X11 funcione fora do localhost
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?X11UseLocalhost'
+        line: 'X11UseLocalhost no'
+
+    - name: Reiniciar o serviço SSH para aplicar as mudanças de X11
+      service:
+        name: ssh
+        state: restarted

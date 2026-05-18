@@ -1,76 +1,78 @@
 ---
-- name: Configuração do Servidor DNS (Bind9) no Arq
+- name: Configuração do Servidor DNS Autoritativo (Bind9)
   hosts: arq
   become: yes
   tasks:
-    - name: Instalar o Bind9
+    - name: Instalar o Bind9 e utilitários
       apt:
-        name: bind9
+        name:
+          - bind9
+          - dnsutils
         state: present
-        update_cache: yes
 
-    - name: Configurar opções do Bind (Forwarders)
+    - name: Configurar as opções do Bind9 (Acl, Listen e Forwarders)
       copy:
         dest: /etc/bind/named.conf.options
         content: |
+          acl clients {
+              192.168.56.0/24;
+              localhost;
+          };
           options {
               directory "/var/cache/bind";
               forwarders {
+                  1.1.1.1;
                   8.8.8.8;
-                  8.8.4.4;
               };
+              allow-query { clients; };
+              listen-on { any; };
               dnssec-validation auto;
-              listen-on-v6 { any; };
           };
 
-    - name: Definir as Zonas no named.conf.local
-      blockinfile:
-        path: /etc/bind/named.conf.local
-        block: |
-          zone "projeto.local" {
+    - name: Declarar as Zonas Direta e Reversa
+      copy:
+        dest: /etc/bind/named.conf.local
+        content: |
+          zone "kaua.pedro.devops" {
               type master;
-              file "/etc/bind/db.projeto.local";
+              file "/etc/bind/db.kaua.pedro.devops";
           };
           zone "56.168.192.in-addr.arpa" {
               type master;
-              file "/etc/bind/db.192";
+              file "/etc/bind/db.192.168.56";
           };
 
-    - name: Criar arquivo da Zona Direta
+    - name: Criar o arquivo da Zona Direta
       copy:
-        dest: /etc/bind/db.projeto.local
+        dest: /etc/bind/db.kaua.pedro.devops
         content: |
           $TTL    604800
-          @       IN      SOA     arq.projeto.local. admin.projeto.local. (
-                                2         ; Serial
-                           604800         ; Refresh
-                            86400         ; Retry
-                          2419200         ; Expire
-                           604800 )       ; Negative Cache TTL
-          ;
-          @       IN      NS      arq.projeto.local.
+          @       IN      SOA     arq.kaua.pedro.devops. root.kaua.pedro.devops. (
+                                       2         ; Serial
+                                  604800         ; Refresh
+                                   86400         ; Retry
+                                 2419200         ; Expire
+                                  604800 )       ; Negative Cache TTL
+          @       IN      NS      arq.kaua.pedro.devops.
           arq     IN      A       192.168.56.112
           db      IN      A       192.168.56.120
           app     IN      A       192.168.56.130
-          cli     IN      A       192.168.56.140
 
-    - name: Criar arquivo da Zona Reversa
+    - name: Criar o arquivo da Zona Reversa
       copy:
-        dest: /etc/bind/db.192
+        dest: /etc/bind/db.192.168.56
         content: |
           $TTL    604800
-          @       IN      SOA     arq.projeto.local. admin.projeto.local. (
-                                1         ; Serial
-                           604800         ; Refresh
-                            86400         ; Retry
-                          2419200         ; Expire
-                           604800 )       ; Negative Cache TTL
-          ;
-          @       IN      NS      arq.projeto.local.
-          112     IN      PTR     arq.projeto.local.
-          120     IN      PTR     db.projeto.local.
-          130     IN      PTR     app.projeto.local.
-          140     IN      PTR     cli.projeto.local.
+          @       IN      SOA     arq.kaua.pedro.devops. root.kaua.pedro.devops. (
+                                       2         ; Serial
+                                  604800         ; Refresh
+                                   86400         ; Retry
+                                 2419200         ; Expire
+                                  604800 )       ; Negative Cache TTL
+          @       IN      NS      arq.kaua.pedro.devops.
+          112     IN      PTR     arq.kaua.pedro.devops.
+          120     IN      PTR     db.kaua.pedro.devops.
+          130     IN      PTR     app.kaua.pedro.devops.
 
     - name: Reiniciar o Bind9
       service:
